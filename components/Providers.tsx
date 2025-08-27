@@ -1,29 +1,22 @@
-'use client';
-import ConvexClientProvider from "./ConvexClientProvider";
-import { ThemeProvider } from "./theme-provider";
-
+'use client'
+import ConvexClientProvider from "./ConvexClientProvider"
+import { ThemeProvider } from "./theme-provider"
 
 export default function Providers({
     children,
 }: Readonly<{
-    children: React.ReactNode;
+    children: React.ReactNode
 }>) {
     return (
-        <>
         <ConvexClientProvider>
-        <html lang="en" suppressHydrationWarning>
             <ThemeProvider
                 attribute="class"
                 defaultTheme="system"
                 enableSystem
                 disableTransitionOnChange
             >
-                <body>
-                    {children}
-                </body>
+                {children}
             </ThemeProvider>
-        </html>
         </ConvexClientProvider>
-        </>
-    );
+    )
 }
