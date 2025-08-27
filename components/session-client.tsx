@@ -8,13 +8,49 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import type { Id } from "@/convex/_generated/dataModel"
+import { Skeleton } from "@/components/ui/skeleton"
+import { ErrorBanner } from "@/components/error-banner"
 
 export default function SessionClient({ id }: { id: string }) {
-  const data = useQuery(api.history.get, { analysisId: id as unknown as Id<"analyses"> })
+  const isLikelyConvexId = typeof id === "string" && id.length > 10
+  const data = useQuery(
+    api.history.get,
+    isLikelyConvexId ? ({ analysisId: id as unknown as Id<"analyses"> }) : ("skip" as any)
+  )
+  if (!isLikelyConvexId) {
+    return (
+      <main className="flex flex-col gap-6 p-6">
+        <ErrorBanner message="Invalid session id. Open a session from your dashboard history." />
+      </main>
+    )
+  }
 
   const text = data?.extraction?.rawText ?? ""
   const metrics = (data?.analysis?.metrics as any) || {}
   const suggestions = (data?.analysis?.suggestions as any) || []
+
+  if (!data) {
+    return (
+      <main className="flex flex-col gap-6 p-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="space-y-1">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-6 w-64" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-9 w-36" />
+            <Skeleton className="h-9 w-28" />
+          </div>
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-40 w-full" />
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main className="flex flex-col gap-6 p-6">

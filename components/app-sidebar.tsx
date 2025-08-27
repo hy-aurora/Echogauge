@@ -32,6 +32,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import Link from "next/link"
+import { EchoGaugeLogo } from "@/components/icons"
 
 const data = {
   user: {
@@ -46,6 +48,11 @@ const data = {
       icon: IconDashboard,
     },
     {
+      title: "Sessions",
+      url: "/sessions",
+      icon: IconReport,
+    },
+    {
       title: "History",
       url: "/dashboard#history",
       icon: IconListDetails,
@@ -55,17 +62,17 @@ const data = {
   navSecondary: [
     {
       title: "Settings",
-      url: "#",
+  url: "/settings",
       icon: IconSettings,
     },
     {
       title: "Get Help",
-      url: "#",
+  url: "/help",
       icon: IconHelp,
     },
     {
       title: "Search",
-      url: "#",
+  url: "/search",
       icon: IconSearch,
     },
   ],
@@ -82,10 +89,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <a href="/">
-                <IconInnerShadowTop className="!size-5" />
+              <Link href="/dashboard" className="flex items-center gap-2">
+                <EchoGaugeLogo className="!size-5" />
                 <span className="text-base font-semibold">EchoGauge</span>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

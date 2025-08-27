@@ -6,6 +6,7 @@ import { Toaster } from "sonner";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { SignedIn, SignedOut } from "@clerk/nextjs";
+import { SiteHeader } from "@/components/site-header";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,14 +43,27 @@ export default function RootLayout({
             >
               <AppSidebar variant="inset" />
               <SidebarInset>
+                <SiteHeader />
                 {children}
                 <Toaster />
               </SidebarInset>
             </SidebarProvider>
           </SignedIn>
           <SignedOut>
-            {children}
-            <Toaster />
+            <SidebarProvider
+              style={
+                {
+                  "--sidebar-width": "calc(var(--spacing) * 72)",
+                  "--header-height": "calc(var(--spacing) * 12)",
+                } as React.CSSProperties
+              }
+            >
+              <SidebarInset>
+                <SiteHeader />
+                {children}
+                <Toaster />
+              </SidebarInset>
+            </SidebarProvider>
           </SignedOut>
         </Providers>
       </body>

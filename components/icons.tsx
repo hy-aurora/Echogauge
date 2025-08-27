@@ -2,6 +2,41 @@ import { IconSvgProps } from "@/types";
 import * as React from "react";
 
 
+export const EchoGaugeLogo: React.FC<IconSvgProps> = ({
+  size = 20,
+  width,
+  height,
+  ...props
+}) => {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={size || width}
+      height={size || height}
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-label="EchoGauge"
+      {...props}
+    >
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" opacity="0.3" />
+      <path
+        d="M4 12h2m2 0h2m2 0h2m2 0h2"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.5"
+        opacity="0.5"
+      />
+      <path
+        d="M6 12c2-4 4 4 6 0s4 4 6 0"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+};
+
 export const TwitterIcon: React.FC<IconSvgProps> = ({
   size = 24,
   width,

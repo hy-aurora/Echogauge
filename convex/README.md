@@ -3,6 +3,8 @@
 Write your Convex functions here.
 See https://docs.convex.dev/functions for more.
 
+Note: Node-only actions for extraction live in `extract_node.ts` with a top-level "use node" directive. Run `npx convex dev` to regenerate `_generated` typings so `api.extract_node.*` becomes available in your client code.
+
 A query function that takes two arguments looks like:
 
 ```ts

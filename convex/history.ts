@@ -3,17 +3,33 @@ import { v } from "convex/values"
 
 export const list = query({
   args: { limit: v.optional(v.number()), cursor: v.optional(v.number()) },
-  handler: async (ctx, { limit = 20, cursor }) => {
-    // If user table links to Clerk, try to scope by identity
-    const identity = await ctx.auth.getUserIdentity()
-    // For now, list latest analyses globally or later join by user uploads
-    const analyses = await ctx.db
-      .query("analyses")
-      .order("desc")
-      .collect()
-    const items = analyses.slice(cursor ?? 0, (cursor ?? 0) + limit)
-    return { items, nextCursor: (cursor ?? 0) + items.length < analyses.length ? (cursor ?? 0) + items.length : null }
-  },
+    handler: async (ctx, { limit = 20, cursor }) => {
+      const identity = await ctx.auth.getUserIdentity()
+      if (!identity) return { items: [], nextCursor: null as number | null }
+      // Find uploads by this user
+      const uploads = await ctx.db
+        .query("uploads")
+        .withIndex("by_user", q => q.eq("userId", identity.subject))
+        .order("desc")
+        .collect()
+      const uploadIds = new Set(uploads.map(u => u._id))
+      // Get extractions for those uploads
+      const extractions = await Promise.all(
+        uploads.map(u => ctx.db.query("extractions").withIndex("by_upload", q => q.eq("uploadId", u._id)).collect())
+      )
+      const extractionIds = new Set(extractions.flat().map(e => e._id))
+      // Get analyses for those extractions
+      const analyses = await ctx.db
+        .query("analyses")
+        .withIndex("by_created")
+        .order("desc")
+        .collect()
+      const filtered = analyses.filter(a => extractionIds.has(a.extractionId))
+      const start = cursor ?? 0
+      const items = filtered.slice(start, start + limit)
+      const nextCursor = start + items.length < filtered.length ? start + items.length : null
+      return { items, nextCursor }
+    },
 })
 
 export const get = query({

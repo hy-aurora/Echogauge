@@ -6,15 +6,16 @@ export const save = mutation({
     uploadId: v.id("uploads"),
     rawText: v.string(),
     method: v.string(),
+    status: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const extractionId = await ctx.db.insert("extractions", {
       uploadId: args.uploadId,
       rawText: args.rawText,
       method: args.method,
+      status: args.status,
       createdAt: Date.now(),
     })
-    await ctx.db.patch(args.uploadId, { status: "processing" })
     return extractionId
   },
 })

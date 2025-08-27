@@ -28,6 +28,7 @@ export default defineSchema({
     rawText: v.string(),
     method: v.string(), // pdf | ocr
     meta: v.optional(v.any()),
+  status: v.optional(v.string()), // processing | done | error
     createdAt: v.number(),
   }).index("by_upload", ["uploadId"]),
 
@@ -36,6 +37,7 @@ export default defineSchema({
     metrics: v.any(),
     suggestions: v.array(v.string()),
     modelInfo: v.optional(v.string()),
+  status: v.optional(v.string()), // processing | done | error
     createdAt: v.number(),
   }).index("by_extraction", ["extractionId"]).index("by_created", ["createdAt"]),
 
