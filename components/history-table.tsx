@@ -5,8 +5,8 @@ import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 
 export function HistoryTable() {
-  const data = useQuery(api.history.list, { limit: 10 })
-  const rows = data?.items || []
+  const data = useQuery(api.history.list, { limit: 10 }) || { items: [] }
+  const rows = data.items
   return (
     <Card id="history" className="overflow-hidden">
       <div className="border-b p-4 text-sm font-medium">Recent Analyses</div>
