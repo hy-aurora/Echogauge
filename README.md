@@ -189,4 +189,4 @@ For help and questions:
 
 ---
 
-Built with ❤️ using Next.js, Convex, and Google Gemini AI
+Built with ❤️ using Next.js, Convex, and Google Gemini AI by Omisha Singh
