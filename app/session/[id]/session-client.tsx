@@ -141,8 +141,8 @@ async function exportPdf(id: string) {
     })
     
     // Generate and download PDF
-    const pdfBytes = await pdfDoc.save()
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+  const pdfBytes = await pdfDoc.save()
+  const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
