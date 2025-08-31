@@ -3,17 +3,36 @@ import { v } from "convex/values"
 import { api } from "./_generated/api"
 
 function summarize(text: string) {
-  const words = text.trim().split(/\s+/).filter(Boolean)
+  // Clean the text first - remove binary data patterns
+  const cleanText = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '')
+    .replace(/stream[\s\S]*?endstream/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/[^\/\n]*\//g, '')
+    .replace(/[^\w\s.,!?;:()[\]{}"'\-–—…]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  // If text is mostly binary/non-readable, return empty analysis
+  if (cleanText.length < 50 || cleanText.split(' ').length < 10) {
+    return {
+      wordCount: 0,
+      charCount: 0,
+      readability: 0,
+      suggestions: ["The uploaded file appears to be an image or contains non-text content. Please ensure you're uploading a text-based document."]
+    }
+  }
+
+  const words = cleanText.split(/\s+/).filter(Boolean)
   const wordCount = words.length
-  const charCount = text.length
-  const sentenceCount = (text.match(/[.!?]/g) || []).length || 1
+  const charCount = cleanText.length
+  const sentenceCount = (cleanText.match(/[.!?]/g) || []).length || 1
   const avgWordsPerSentence = wordCount / sentenceCount
   // Simple readability proxy (not Flesch): lower is easier
   const readability = Math.max(0, Math.min(100, 100 - avgWordsPerSentence * 10))
   const suggestions: string[] = []
   if (avgWordsPerSentence > 20) suggestions.push("Shorten long sentences for clarity.")
   if (readability < 50) suggestions.push("Use simpler words and shorter sentences to improve readability.")
-  if (!/\b(call to action|sign up|learn more|contact|buy now)\b/i.test(text)) suggestions.push("Add a clear call-to-action.")
+  if (!/\b(call to action|sign up|learn more|contact|buy now)\b/i.test(cleanText)) suggestions.push("Add a clear call-to-action.")
   return { wordCount, charCount, readability, suggestions }
 }
 
@@ -77,19 +96,65 @@ export const get = query({
 export const gemini = action({
   args: { extractionId: v.id("extractions") },
   handler: async (ctx, { extractionId }): Promise<{ analysisId: any }> => {
-  const extraction = await ctx.runQuery(api.extractions.get, { extractionId })
+    const extraction = await ctx.runQuery(api.extractions.get, { extractionId })
     if (!extraction) throw new Error("extraction not found")
-  // set related upload to analyzing
-  const upload = await ctx.runQuery(api.files.getUpload, { uploadId: extraction.uploadId })
-  if (upload) await ctx.runMutation(api.files.setStatus, { uploadId: upload._id, status: "analyzing" })
+    
+    // set related upload to analyzing
+    const upload = await ctx.runQuery(api.files.getUpload, { uploadId: extraction.uploadId })
+    if (upload) await ctx.runMutation(api.files.setStatus, { uploadId: upload._id, status: "analyzing" })
 
     const apiKey = (process.env.GEMINI_API_KEY || "").trim()
-    const basePrompt = `Analyze the following text and return JSON with keys: readability (0-100), summary (1-2 sentences), suggestions (array of short actionable strings). Text:\n\n${extraction.rawText?.slice(0, 20000) || ""}`
+    
+    // Clean the text first
+    const rawText = extraction.rawText || ""
+    const cleanText = rawText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '')
+      .replace(/stream[\s\S]*?endstream/g, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/[^\/\n]*\//g, '')
+      .replace(/[^\w\s.,!?;:()[\]{}"'\-–—…]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
 
-    let aiSuggestions: string[] = []
+    // If text is too short or appears to be binary, skip AI analysis
+    if (cleanText.length < 100 || cleanText.split(' ').length < 20) {
+      const local = summarize(rawText)
+      const analysisId = await ctx.runMutation(api.analyses.save, {
+        extractionId,
+        metrics: local,
+        suggestions: local.suggestions,
+        metadata: {
+          summary: "The uploaded file appears to be an image or contains non-text content. Please ensure you're uploading a text-based document.",
+          tone: "technical",
+          keyTopics: ["File Analysis", "Content Type", "Text Extraction"],
+          estimatedReadingTime: 0
+        },
+      })
+      if (upload) await ctx.runMutation(api.files.setStatus, { uploadId: upload._id, status: "done" })
+      return { analysisId }
+    }
+    
+    // Improved prompt for better analysis
+    const basePrompt = `Analyze the following text and provide a comprehensive analysis. Return your response as valid JSON with the following structure:
+
+{
+  "readability": number (0-100, where 100 is very easy to read),
+  "summary": "1-2 sentence summary of the main content",
+  "keyTopics": ["array", "of", "main", "topics"],
+  "tone": "formal|informal|technical|conversational",
+  "suggestions": ["array", "of", "actionable", "improvement", "suggestions"],
+  "wordCount": number,
+  "estimatedReadingTime": number (in minutes)
+}
+
+Text to analyze:
+${cleanText.slice(0, 30000)}`
+
+    let aiAnalysis: any = null
     let readability = undefined as number | undefined
+    
     try {
       if (!apiKey) throw new Error("missing api key")
+      
       const res = await fetch(
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey,
         {
@@ -102,43 +167,78 @@ export const gemini = action({
                 parts: [{ text: basePrompt }],
               },
             ],
+            generationConfig: {
+              temperature: 0.3,
+              maxOutputTokens: 2048,
+            },
           }),
         }
       )
-      if (!res.ok) throw new Error(`gemini http ${res.status}`)
+      
+      if (!res.ok) {
+        const errorText = await res.text()
+        throw new Error(`Gemini API error ${res.status}: ${errorText}`)
+      }
+      
       const json = (await res.json()) as any
       const text = json?.candidates?.[0]?.content?.parts?.[0]?.text || ""
-      const match = text.match(/\{[\s\S]*\}/)
-      if (match) {
-        const parsed = JSON.parse(match[0])
-        aiSuggestions = Array.isArray(parsed.suggestions) ? parsed.suggestions.slice(0, 10) : []
-        if (typeof parsed.readability === "number") readability = parsed.readability
-      } else {
-        // fallback simple parsing
-        aiSuggestions = text
+      
+      // Try to extract JSON from the response
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        try {
+          aiAnalysis = JSON.parse(jsonMatch[0])
+          readability = typeof aiAnalysis.readability === "number" ? aiAnalysis.readability : undefined
+        } catch (parseError) {
+          console.log("Failed to parse Gemini JSON response:", parseError)
+        }
+      }
+      
+      // If JSON parsing failed, try to extract suggestions from plain text
+      if (!aiAnalysis) {
+        const suggestions = text
           .split(/\n|•|-/)
           .map((s: string) => s.trim())
-          .filter(Boolean)
-          .slice(0, 10)
+          .filter((s: string) => s.length > 10 && s.length < 200)
+          .slice(0, 8)
+        aiAnalysis = { suggestions }
       }
-  } catch {
-      // ignore and use local analysis only
+      
+    } catch (error) {
+      console.log("Gemini analysis failed, falling back to local analysis:", error)
+      // Continue with local analysis only
     }
 
-    const local = summarize(extraction.rawText || "")
+    // Run local analysis
+    const local = summarize(rawText)
+    
+    // Combine AI and local analysis
     const metrics = {
-      wordCount: local.wordCount,
+      wordCount: aiAnalysis?.wordCount || local.wordCount,
       charCount: local.charCount,
       readability: readability ?? local.readability,
     }
-    const suggestions = [...new Set([...(aiSuggestions || []), ...local.suggestions])].slice(0, 10)
+    
+    // Merge suggestions, prioritizing AI suggestions
+    const aiSuggestions = aiAnalysis?.suggestions || []
+    const localSuggestions = local.suggestions || []
+    const allSuggestions = [...new Set([...aiSuggestions, ...localSuggestions])].slice(0, 10)
+    
+    // Add additional metadata if available
+    const metadata: any = {}
+    if (aiAnalysis?.summary) metadata.summary = aiAnalysis.summary
+    if (aiAnalysis?.keyTopics) metadata.keyTopics = aiAnalysis.keyTopics
+    if (aiAnalysis?.tone) metadata.tone = aiAnalysis.tone
+    if (aiAnalysis?.estimatedReadingTime) metadata.estimatedReadingTime = aiAnalysis.estimatedReadingTime
 
-  const analysisId = await ctx.runMutation(api.analyses.save, {
+    const analysisId = await ctx.runMutation(api.analyses.save, {
       extractionId,
       metrics,
-      suggestions,
+      suggestions: allSuggestions,
+      metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
     })
-  if (upload) await ctx.runMutation(api.files.setStatus, { uploadId: upload._id, status: "done" })
+    
+    if (upload) await ctx.runMutation(api.files.setStatus, { uploadId: upload._id, status: "done" })
     return { analysisId }
   },
 })

@@ -2,24 +2,15 @@
 
 import * as React from "react"
 import {
-  IconCamera,
-  IconChartBar,
   IconDashboard,
-  IconDatabase,
-  IconFileAi,
-  IconFileDescription,
   IconFileWord,
-  IconFolder,
-  IconHelp,
-  IconInnerShadowTop,
   IconListDetails,
-  IconReport,
-  IconSearch,
   IconSettings,
-  IconUsers,
+  IconHelp,
+  IconChartBar,
+  IconGitCompare,
 } from "@tabler/icons-react"
 
-import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
@@ -50,33 +41,36 @@ const data = {
     {
       title: "Sessions",
       url: "/sessions",
-      icon: IconReport,
-    },
-    {
-      title: "History",
-      url: "/dashboard#history",
       icon: IconListDetails,
     },
+    {
+      title: "Analytics",
+      url: "/analytics",
+      icon: IconChartBar,
+    },
+    {
+      title: "Comparisons",
+      url: "/comparisons",
+      icon: IconGitCompare,
+    },
+    {
+      title: "Personal Logs",
+      url: "/logs",
+      icon: IconFileWord,
+    },
   ],
-  navClouds: [],
   navSecondary: [
     {
       title: "Settings",
-  url: "/settings",
+      url: "/settings",
       icon: IconSettings,
     },
     {
       title: "Get Help",
-  url: "/help",
+      url: "/help",
       icon: IconHelp,
     },
-    {
-      title: "Search",
-  url: "/search",
-      icon: IconSearch,
-    },
   ],
-  documents: [],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -99,7 +93,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

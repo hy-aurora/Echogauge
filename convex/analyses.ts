@@ -6,12 +6,14 @@ export const save = mutation({
     extractionId: v.id("extractions"),
     metrics: v.object({ wordCount: v.number(), charCount: v.number(), readability: v.number() }),
     suggestions: v.array(v.string()),
+    metadata: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
     const id = await ctx.db.insert("analyses", {
       extractionId: args.extractionId,
       metrics: args.metrics,
       suggestions: args.suggestions,
+      metadata: args.metadata,
       createdAt: Date.now(),
     })
     return id

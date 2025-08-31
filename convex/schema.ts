@@ -28,7 +28,7 @@ export default defineSchema({
     rawText: v.string(),
     method: v.string(), // pdf | ocr
     meta: v.optional(v.any()),
-  status: v.optional(v.string()), // processing | done | error
+    status: v.optional(v.string()), // processing | done | error
     createdAt: v.number(),
   }).index("by_upload", ["uploadId"]),
 
@@ -36,8 +36,9 @@ export default defineSchema({
     extractionId: v.id("extractions"),
     metrics: v.any(),
     suggestions: v.array(v.string()),
+    metadata: v.optional(v.any()), // Additional AI analysis metadata
     modelInfo: v.optional(v.string()),
-  status: v.optional(v.string()), // processing | done | error
+    status: v.optional(v.string()), // processing | done | error
     createdAt: v.number(),
   }).index("by_extraction", ["extractionId"]).index("by_created", ["createdAt"]),
 
@@ -47,4 +48,26 @@ export default defineSchema({
     ts: v.number(),
     meta: v.optional(v.any()),
   }).index("by_user", ["userId"]).index("by_ts", ["ts"]),
+
+  // Personal logs for users
+  personal_logs: defineTable({
+    userId: v.string(),
+    title: v.string(),
+    content: v.string(),
+    tags: v.array(v.string()),
+    mood: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]).index("by_created", ["createdAt"]),
+
+  // Content comparisons
+  comparisons: defineTable({
+    userId: v.string(),
+    name: v.string(),
+    description: v.optional(v.string()),
+    analysisIds: v.array(v.id("analyses")),
+    comparisonData: v.any(), // Comparison metrics and insights
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]).index("by_created", ["createdAt"]),
 });

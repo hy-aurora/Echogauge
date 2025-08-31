@@ -10,6 +10,7 @@ import { api } from "@/convex/_generated/api"
 import { useUploadProgress } from "@/components/UploadProgressContext"
 import { Id } from "@/convex/_generated/dataModel"
 import { ErrorDialog } from "@/components/error-dialog"
+import { Upload, FileText, Image, Sparkles } from "lucide-react"
 
 const ACCEPT = {
   "application/pdf": [".pdf"],
@@ -72,7 +73,16 @@ export function FileDropCard() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ uploadId }),
         })
-        if (!resp.ok) throw new Error("parse http")
+        if (!resp.ok) {
+          let errorMessage = `HTTP ${resp.status}: ${resp.statusText}`
+          try {
+            const errorData = await resp.json()
+            if (errorData.error) {
+              errorMessage += ` - ${errorData.error}`
+            }
+          } catch {}
+          throw new Error(`Parse failed: ${errorMessage}`)
+        }
         const j = await resp.json()
         return j.extractionId as string
       }
@@ -87,7 +97,16 @@ export function FileDropCard() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ uploadId }),
             })
-            if (!resp.ok) throw new Error("ocr http")
+            if (!resp.ok) {
+              let errorMessage = `HTTP ${resp.status}: ${resp.statusText}`
+              try {
+                const errorData = await resp.json()
+                if (errorData.error) {
+                  errorMessage += ` - ${errorData.error}`
+                }
+              } catch {}
+              throw new Error(`OCR failed: ${errorMessage}`)
+            }
             const j = await resp.json()
             extractionId = j.extractionId as string
           }
@@ -145,16 +164,73 @@ export function FileDropCard() {
 
   return (
   <>
-  <Card
-      className="flex min-h-40 flex-col items-center justify-center gap-3 border-dashed p-8 text-center"
+  <div
+      className={`relative group transition-all duration-300 ${
+        isDragActive ? 'scale-105' : 'hover:scale-[1.02]'
+      }`}
       {...getRootProps()}
     >
-      <input {...getInputProps()} />
-      <div className="text-sm text-muted-foreground">{hint}</div>
-      <Button disabled={isUploading} variant="outline">
-        {isUploading ? "Uploading…" : "Choose file"}
-      </Button>
-    </Card>
+      <Card className={`
+        flex min-h-48 flex-col items-center justify-center gap-4 border-2 border-dashed p-8 text-center
+        transition-all duration-300 cursor-pointer
+        ${isDragActive 
+          ? 'border-primary bg-primary/5 shadow-lg' 
+          : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50'
+        }
+        ${isUploading ? 'opacity-75 pointer-events-none' : ''}
+      `}>
+        <input {...getInputProps()} />
+        
+        {/* Icon */}
+        <div className={`
+          p-4 rounded-full transition-all duration-300
+          ${isDragActive 
+            ? 'bg-primary/10 text-primary scale-110' 
+            : 'bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary'
+          }
+        `}>
+          {isDragActive ? (
+            <Sparkles className="w-8 h-8" />
+          ) : (
+            <Upload className="w-8 h-8" />
+          )}
+        </div>
+
+        {/* Text */}
+        <div className="space-y-2">
+          <div className="text-lg font-semibold">
+            {isDragActive ? "Drop to analyze" : "Upload your content"}
+          </div>
+          <div className="text-sm text-muted-foreground max-w-sm">
+            {hint}
+          </div>
+        </div>
+
+        {/* File type indicators */}
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <FileText className="w-3 h-3" />
+            <span>PDF</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Image className="w-3 h-3" />
+            <span>Images</span>
+          </div>
+        </div>
+
+        {/* Button */}
+        <Button 
+          disabled={isUploading} 
+          variant="outline" 
+          className={`
+            transition-all duration-300
+            ${isDragActive ? 'bg-primary text-primary-foreground border-primary' : ''}
+          `}
+        >
+          {isUploading ? "Uploading…" : "Choose file"}
+        </Button>
+      </Card>
+    </div>
   <ErrorDialog open={errorOpen} onOpenChange={setErrorOpen} details={lastError} />
   </>
   )
